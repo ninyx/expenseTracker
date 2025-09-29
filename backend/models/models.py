@@ -6,6 +6,7 @@ class Account(Base):
 
     # Table columns: id, name, balance, account_type
     account_id = Column(Integer, primary_key=True, index=True)
+    account_uid = Column(String, unique=True, index=True, nullable=False)
     account_name = Column(String, unique=True, index=True, nullable=False)
     account_type = Column(String, nullable=False) 
     balance = Column(Float, default=0.0)
@@ -28,5 +29,5 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)
     category = Column(Integer, ForeignKey("categories.category_id"), nullable=False)
     description = Column(String, nullable=True)
-    account_id = Column(Integer, ForeignKey("accounts.account_id"), nullable=False)
+    account_id = Column(String, ForeignKey("accounts.account_uid"), nullable=False)
 
