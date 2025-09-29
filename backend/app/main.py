@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from services import accounts, transactions
 from db_schema import schema
 from datetime import datetime
-from routes import account_routes, categories_routes
+from routes import account_routes, categories_routes, transaction_routes
 
 ## initialize API
 app = FastAPI()
@@ -22,3 +22,6 @@ app.include_router(account_routes.account_route)
 
 # CATEGORY TABLE ROUTES
 app.include_router(categories_routes.category_route)
+
+# TRANSACTION TABLE ROUTES
+app.include_router(transaction_routes.transaction_route)

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime, timedelta   
+from datetime import datetime   
 from uuid import uuid4
 
 
@@ -24,7 +24,7 @@ class CategoryBase(BaseModel):
 
 
 class CategoryCreate(CategoryBase):
-    start_date: datetime = datetime.now()
+    start_date: datetime
     end_date: datetime | None = None
     pass
 
@@ -37,20 +37,47 @@ class Category(CategoryBase):
     class config:
         from_attribute = True
 
+# class TransactionBase(BaseModel):
+#     transaction_type: str  
+#     amount: float
+#     description: str | None
+
+# class TransactionCreate(TransactionBase):
+#     category_uid: str
+#     account_uid: str
+#     date: datetime
+
+# class Transaction(TransactionBase):
+#     transaction_uid: str
+#     category_uid: str
+#     account_uid: str
+#     date: datetime
+#     class config:
+#         from_attribute = True
+
 class TransactionBase(BaseModel):
-    transaction_type: str  # 'income' or 'expense'
+    transaction_type: str  # 'income', 'expense', 'reimbursement', 'transfer'
     amount: float
-    description: str | None
+    description: str | None = None
+    date: datetime
 
 class TransactionCreate(TransactionBase):
-    category_uid: str
-    account_uid: str
-    date: datetime = datetime.now()
+    # For income/expense/reimbursement
+    category_uid: str | None = None
+    account_uid: str | None = None
+
+    # For transfers
+    source_account_uid: str | None = None
+    destination_account_uid: str | None = None
+    transfer_fee: float = 0.0
 
 class Transaction(TransactionBase):
     transaction_uid: str
-    category_uid: str
-    account_uid: str
-    date: datetime
+    category_uid: str | None
+    account_uid: str | None
+    source_account_uid: str | None
+    destination_account_uid: str | None
+    transfer_fee: float
+
     class config:
         from_attribute = True
