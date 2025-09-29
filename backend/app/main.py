@@ -1,11 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
-from . import models, schemas, crud, database
+from fastapi import FastAPI
+from database.db import engine, Base, get_db, create_tables
+from models import models
 
-# Feature Add: Rate Limiting
 
-app = FastAPI(title="Expense Tracker")
+## initialize API
+app = FastAPI()
 
-## Establish routes for GET, POST, PUT, DELETE requests
+# Create database tables
+create_tables()
 
-## Establish connection to DB
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Expense Tracker API"}
+
