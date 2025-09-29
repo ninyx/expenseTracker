@@ -1,6 +1,6 @@
-from models.models import Transaction, Account, Category
+from models.models import Account
 from sqlalchemy.orm import Session
-from db_schema.schema import TransactionCreate, AccountCreate, CategoryCreate
+from db_schema.schema import AccountCreate 
 
 #CRUD FOR ACCOUNTS
 

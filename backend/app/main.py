@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from services import accounts, transactions
 from db_schema import schema
 from datetime import datetime
-from routes import account_routes
+from routes import account_routes, categories_routes
 
 ## initialize API
 app = FastAPI()
@@ -17,6 +17,8 @@ create_tables()
 def read_root():
     return {"message": "Welcome to the Expense Tracker API"}
 
-# ACCOUNT ROUTES 
-
+# ACCOUNT TABLE ROUTES 
 app.include_router(account_routes.account_route)
+
+# CATEGORY TABLE ROUTES
+app.include_router(categories_routes.category_route)

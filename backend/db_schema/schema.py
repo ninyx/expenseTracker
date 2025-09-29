@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime   
+from datetime import datetime, timedelta   
 from uuid import uuid4
 
 
@@ -9,7 +9,6 @@ class AccountBase(BaseModel):
     balance: float
 
 class AccountCreate(AccountBase):
-    account_uid: str = str(uuid4())
     pass
 
 class Account(AccountBase):
@@ -20,13 +19,21 @@ class Account(AccountBase):
 
 class CategoryBase(BaseModel):
     category: str
-    amount: float
+    budget: float
+    frequency: str  # e.g., 'monthly', 'weekly'
+
 
 class CategoryCreate(CategoryBase):
+    start_date: datetime = datetime.now()
+    end_date: datetime | None = None
     pass
 
 class Category(CategoryBase):
     category_id: int
+    category_uid: str
+    budget_used: float
+    start_date: datetime
+    end_date: datetime | None
     class config:
         from_attribute = True
 
@@ -36,15 +43,14 @@ class TransactionBase(BaseModel):
     description: str | None
 
 class TransactionCreate(TransactionBase):
-    category: int
-    account_id: int
+    category_uid: str
+    account_uid: str
     date: datetime = datetime.now()
 
 class Transaction(TransactionBase):
-    transaction_id: int
-    category: int
-    account_id: int
+    transaction_uid: str
+    category_uid: str
+    account_uid: str
     date: datetime
-
     class config:
         from_attribute = True
