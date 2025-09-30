@@ -1,63 +1,171 @@
-from database.db import Base
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
-from datetime import datetime   
-
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
 from uuid import uuid4
+from datetime import datetime
+
+Base = declarative_base()
+
+
+# ==============================
+# ACCOUNTS SCHEMA
+# ==============================
 
 class Account(Base):
     __tablename__ = "accounts"
 
-    # Table columns: id, name, balance, account_type
-    account_id = Column(Integer, primary_key=True, index=True)
-    account_uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
-    account_name = Column(String, index=True, nullable=False)
-    account_type = Column(String, nullable=False) 
-    balance = Column(Float, default=0.0)
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    name = Column(String, nullable=False)
+    type_uid = Column(String, ForeignKey("account_types.uid"), nullable=False)
+    balance = Column(Float, nullable=False, default=0.0)
+
+    types = relationship("AccountType", back_populates="accounts")
+    transactions = relationship("TransactionExpense", back_populates="account")
+    incomes = relationship("TransactionIncome", back_populates="account")
+    reimbursements = relationship("TransactionReimbursement", back_populates="account")
+    transfers_src = relationship("TransactionTransfer", foreign_keys="TransactionTransfer.src_account_uid", back_populates="src_account")
+    transfers_dest = relationship("TransactionTransfer", foreign_keys="TransactionTransfer.dest_account_uid", back_populates="dest_account")
+
+
+class AccountType(Base):
+    __tablename__ = "account_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    name = Column(String, unique=True, nullable=False)  # e.g. 'Checking', 'Savings', 'Credit'
+
+    accounts = relationship("Account", back_populates="type")
+
+
+# ==============================
+# CATEGORIES SCHEMA
+# ==============================
 
 class Category(Base):
     __tablename__ = "categories"
 
-    # Table columns: id, category, amount, start_date, end_date
-    category_id = Column(Integer, primary_key=True, index=True)
-    category_uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
-    category = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    name = Column(String, nullable=False)
+
+    budgets = relationship("CategoryBudget", back_populates="category")
+    expenses = relationship("TransactionExpense", back_populates="category")
+    incomes = relationship("TransactionIncome", back_populates="category")
+    reimbursements = relationship("TransactionReimbursement", back_populates="category")
+
+
+class CategoryBudget(Base):
+    __tablename__ = "category_budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_uid = Column(String, ForeignKey("categories.uid"), nullable=False)
     budget = Column(Float, nullable=False)
-    budget_used = Column(Float, default=0.0)
     frequency = Column(String, nullable=False)  # e.g., 'monthly', 'weekly'
     start_date = Column(DateTime, nullable=False, default=datetime.now)
-    end_date = Column(DateTime, nullable=True, default=datetime.now)
+    end_date = Column(DateTime, nullable=True)
 
-# class Transaction(Base):
-#     __tablename__ = "transactions"
+    category = relationship("Category", back_populates="budgets")
 
-#     # Table columns: id, amount, category, date, description, account_id
-#     transaction_id = Column(Integer, primary_key=True, index=True)
-#     transaction_uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
-#     date = Column(DateTime, nullable=False)
-#     transaction_type = Column(String, nullable=False)  # 'income' or 'expense'
-#     amount = Column(Float, nullable=False)
-#     category_uid = Column(String, ForeignKey("categories.category_uid"), nullable=False)
-#     description = Column(String, nullable=True)
-#     account_uid = Column(String, ForeignKey("accounts.account_uid"), nullable=False)
 
+# ==============================
+# TRANSACTIONS SCHEMA
+# ==============================
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    transaction_id = Column(Integer, primary_key=True, index=True)
-    transaction_uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4())) 
+    type_uid = Column(String, ForeignKey("transaction_types.uid"), nullable=False)
+
+    type = relationship("TransactionType", back_populates="transactions")
+
+
+class TransactionType(Base):
+    __tablename__ = "transaction_types"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    name = Column(String, unique=True, nullable=False)  # e.g. 'income', 'expense', 'transfer'
+
+    transactions = relationship("Transaction", back_populates="type")
+
+
+class TransactionExpense(Base):
+    __tablename__ = "transaction_expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    transaction_uid = Column(String, ForeignKey("transactions.uid"), nullable=False)
+    type_uid = Column(String, ForeignKey("transaction_types.uid"), nullable=False)
     date = Column(DateTime, nullable=False, default=datetime.now)
-    transaction_type = Column(String, nullable=False)  # 'income', 'expense', 'reimbursement', 'transfer'
     amount = Column(Float, nullable=False)
+    account_uid = Column(String, ForeignKey("accounts.uid"), nullable=False)
+    category_uid = Column(String, ForeignKey("categories.uid"), nullable=False)
     description = Column(String, nullable=True)
-    
-    # For income/expense/reimbursement
-    category_uid = Column(String, ForeignKey("categories.category_uid"), nullable=True)
-    account_uid = Column(String, ForeignKey("accounts.account_uid"), nullable=True)
 
-    # Extra fields for transfers
-    source_account_uid = Column(String, ForeignKey("accounts.account_uid"), nullable=True)
-    destination_account_uid = Column(String, ForeignKey("accounts.account_uid"), nullable=True)
-    transfer_fee = Column(Float, default=0.0)
+    transaction = relationship("Transaction")
+    type = relationship("TransactionType")
+    account = relationship("Account", back_populates="transactions")
+    category = relationship("Category", back_populates="expenses")
 
 
+class TransactionIncome(Base):
+    __tablename__ = "transaction_incomes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    transaction_uid = Column(String, ForeignKey("transactions.uid"), nullable=False)
+    type_uid = Column(String, ForeignKey("transaction_types.uid"), nullable=False)
+    date = Column(DateTime, nullable=False, default=datetime.now)
+    amount = Column(Float, nullable=False)
+    account_uid = Column(String, ForeignKey("accounts.uid"), nullable=False)
+    category_uid = Column(String, ForeignKey("categories.uid"), nullable=False)
+    description = Column(String, nullable=True)
+
+    transaction = relationship("Transaction")
+    type = relationship("TransactionType")
+    account = relationship("Account", back_populates="incomes")
+    category = relationship("Category", back_populates="incomes")
+
+
+class TransactionReimbursement(Base):
+    __tablename__ = "transaction_reimbursements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    transaction_uid = Column(String, ForeignKey("transactions.uid"), nullable=False)
+    type_uid = Column(String, ForeignKey("transaction_types.uid"), nullable=False)
+    expense_transaction_uid = Column(String, ForeignKey("transaction_expenses.uid"), nullable=False)
+    date = Column(DateTime, nullable=False, default=datetime.now)
+    amount = Column(Float, nullable=False)
+    account_uid = Column(String, ForeignKey("accounts.uid"), nullable=False)
+    category_uid = Column(String, ForeignKey("categories.uid"), nullable=False)
+    description = Column(String, nullable=True)
+
+    transaction = relationship("Transaction")
+    type = relationship("TransactionType")
+    expense_transaction = relationship("TransactionExpense")
+    account = relationship("Account", back_populates="reimbursements")
+    category = relationship("Category", back_populates="reimbursements")
+
+
+class TransactionTransfer(Base):
+    __tablename__ = "transaction_transfers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uid = Column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid4()))
+    transaction_uid = Column(String, ForeignKey("transactions.uid"), nullable=False)
+    type_uid = Column(String, ForeignKey("transaction_types.uid"), nullable=False)
+    date = Column(DateTime, nullable=False, default=datetime.now)
+    amount = Column(Float, nullable=False)
+    transfer_fee = Column(Float, nullable=False, default=0.0)
+    src_account_uid = Column(String, ForeignKey("accounts.uid"), nullable=False)
+    dest_account_uid = Column(String, ForeignKey("accounts.uid"), nullable=False)
+    description = Column(String, nullable=True)
+
+    transaction = relationship("Transaction")
+    type = relationship("TransactionType")
+    src_account = relationship("Account", foreign_keys=[src_account_uid], back_populates="transfers_src")
+    dest_account = relationship("Account", foreign_keys=[dest_account_uid], back_populates="transfers_dest")
