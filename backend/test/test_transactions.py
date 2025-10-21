@@ -2,7 +2,10 @@
 import pytest
 
 @pytest.mark.asyncio
-async def test_get_transactions_empty(async_client):
+async def test_get_transactions_empty(async_client, test_db):
+    # Ensure database is empty
+    await test_db["transactions"].delete_many({})
+    
     response = await async_client.get("/transactions/")
     assert response.status_code == 200
     assert response.json() == []
@@ -10,13 +13,15 @@ async def test_get_transactions_empty(async_client):
 @pytest.mark.asyncio
 async def test_create_transaction(async_client):
     payload = {
-        "account": "Cash",
-        "category": "Food",
-        "amount": 50.0,
-        "description": "Lunch"
+    "type": "expense",
+    "account_uid": "acct-cash",
+    "category_uid": "cat-food",
+    "amount": 50.0,
+    "description": "Lunch",
     }
+
     response = await async_client.post("/transactions/", json=payload)
     assert response.status_code == 201
     data = response.json()
-    assert data["category"] == "Food"
+    assert data["category_uid"] == "cat-food"
     assert data["amount"] == 50.0

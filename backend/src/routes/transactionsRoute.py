@@ -26,15 +26,17 @@ def serialize_data(data):
     else:
         return data
 
-@router.post("/", response_model=Transaction)
+@router.post("/", response_model=Transaction, status_code=201)
 async def create_tx(tx: Transaction):
-     # ✅ Step 1: If no date, set it
-    if "date" not in tx.dict() or not tx.dict()["date"]:
-        tx.date = datetime.now()
-
-    # ✅ Step 2: Convert datetime → string before validating
-    clean_data = serialize_data(tx.dict())
-
+    # Convert model to dict and handle date
+    data = tx.model_dump()
+    if "date" not in data or not data["date"]:
+        data["date"] = datetime.now()
+    
+    # Serialize data (convert datetime/ObjectId to string)
+    clean_data = serialize_data(data)
+    
+    # Validate and create
     validate_transaction(clean_data)
     return await create_transaction(clean_data)
 
