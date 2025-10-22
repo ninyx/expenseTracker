@@ -4,6 +4,8 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+
 
 from src.database import connect_to_mongo, close_mongo_connection
 from src.db_indexes import create_indexes
@@ -48,6 +50,19 @@ app = FastAPI(
     description="API for tracking expenses and managing financial transactions",
     version="1.0.0",
     lifespan=lifespan
+)
+
+
+origins = [
+    "http://localhost:5173",  # Vite frontend
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Exception handlers
