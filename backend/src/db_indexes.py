@@ -18,4 +18,14 @@ async def create_indexes():
     ]
     await db.transactions.create_indexes(transaction_indexes)
 
+    # Account indexes
+    account_indexes = [
+        IndexModel([("uid", ASCENDING)], unique=True),
+        IndexModel([("type", ASCENDING)]),
+        IndexModel([("created_at", ASCENDING)]),
+        IndexModel([("updated_at", ASCENDING)])
+    ]
+
+    await db.accounts.create_indexes(account_indexes)
+
     print("✅ MongoDB indexes created")
