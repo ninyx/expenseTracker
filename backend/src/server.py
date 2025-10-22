@@ -9,6 +9,7 @@ from src.database import connect_to_mongo, close_mongo_connection
 from src.db_indexes import create_indexes
 from src.routes.transactionsRoute import router as transaction_router
 from src.routes.accountsRoute import router as account_router
+from src.routes.categoriesRoute import router as category_router
 from src.config.exceptions import DatabaseConnectionError, DatabaseInitializationError
 
 @asynccontextmanager
@@ -67,6 +68,7 @@ async def database_initialization_exception_handler(request, exc):
 # Include routers
 app.include_router(transaction_router)
 app.include_router(account_router)
+app.include_router(category_router)
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

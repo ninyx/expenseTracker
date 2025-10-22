@@ -29,3 +29,14 @@ async def create_indexes():
     await db.accounts.create_indexes(account_indexes)
 
     print("✅ MongoDB indexes created")
+
+    # Category indexes
+    category_indexes = [
+        IndexModel([("uid", ASCENDING)], unique=True),
+        IndexModel([("name", ASCENDING)]),
+        IndexModel([("created_at", ASCENDING)]),
+        IndexModel([("updated_at", ASCENDING)])
+    ]
+
+    await db.categories.create_indexes(category_indexes)
+    print("✅ MongoDB indexes created for categories")

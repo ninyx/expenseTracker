@@ -55,3 +55,26 @@ def validate_account(account: dict):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid account data: {e.message}"
         )
+    
+category_schema = {
+    "type": "object",
+    "properties": {
+        "uid": {"type": "string"},
+        "name": {"type": "string"},
+        "is_active": {"type": "boolean"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+    },
+    "required": ["name"],
+    "additionalProperties": False
+}
+
+
+def validate_category(category: dict):
+    try:
+        validate(instance=category, schema=category_schema)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid category data: {e.message}"
+        )
