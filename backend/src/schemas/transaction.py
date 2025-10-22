@@ -81,17 +81,27 @@ class TransactionUpdate(BaseModel):
         if v is not None and v < 0:
             raise ValueError('Transfer fee cannot be negative')
         return v
-
-
 class TransactionResponse(TransactionBase):
     """Schema for transaction response from API"""
     uid: str
+    type: Literal["income", "expense", "reimburse", "transfer"]
     date: datetime
+    amount: float
+    description: Optional[str] = None
     account_uid: Optional[str] = None
     category_uid: Optional[str] = None
     transfer_fee: Optional[float] = None
     from_account_uid: Optional[str] = None
     to_account_uid: Optional[str] = None
     expense_uid: Optional[str] = None
+
+    # Display-only fields
+    account_name: Optional[str] = None
+    category_name: Optional[str] = None
+    from_account_name: Optional[str] = None
+    to_account_name: Optional[str] = None
+
+    # 👇 Add full details of reimbursed expense
+    reimbursed_transaction: Optional[dict] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -110,7 +110,7 @@ async def async_client(test_db):
     
     # Create async HTTP client
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test/api") as client:
         yield client
     
     # Clean up: Clear dependency overrides
