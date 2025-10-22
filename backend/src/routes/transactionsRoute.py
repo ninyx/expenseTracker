@@ -1,69 +1,98 @@
-# app/routes/transaction_routes.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
-from ..model import Transaction
-from ..crud.transactions import (
-    create_transaction, get_all_transactions, get_transaction,
-    update_transaction, delete_transaction
+from ..schemas.transaction import (
+    TransactionCreate,
+    TransactionUpdate,
+    TransactionResponse
 )
-from ..validations.schema import validate_transaction
+from ..models.transaction import TransactionModel
+from ..database import get_db
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
-from datetime import datetime
-from bson import ObjectId
+@router.post("/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+async def create_transaction(
+    tx: TransactionCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> TransactionResponse:
+    """Create a new transaction"""
+    transaction_model = TransactionModel(db)
+    result = await transaction_model.create(tx.model_dump())
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not create transaction"
+        )
+    return TransactionResponse(**result)
 
-def serialize_data(data):
-    """Recursively converts datetime and ObjectId objects for JSON storage."""
-    if isinstance(data, dict):
-        return {k: serialize_data(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [serialize_data(v) for v in data]
-    elif isinstance(data, datetime):
-        return data.isoformat()
-    elif isinstance(data, ObjectId):
-        return str(data)
-    else:
-        return data
+@router.get("/", response_model=List[TransactionResponse])
+async def get_transactions(
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> List[TransactionResponse]:
+    """Get all transactions"""
+    transaction_model = TransactionModel(db)
+    transactions = await transaction_model.get_all()
+    return [TransactionResponse(**tx) for tx in transactions]
 
-@router.post("/", response_model=Transaction, status_code=201)
-async def create_tx(tx: Transaction):
-    # Convert model to dict and handle date
-    data = tx.model_dump()
-    if "date" not in data or not data["date"]:
-        data["date"] = datetime.now()
+@router.get("/{uid}", response_model=TransactionResponse)
+async def get_transaction(
+    uid: str,
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> TransactionResponse:
+    """Get a specific transaction by UID"""
+    transaction_model = TransactionModel(db)
+    transaction = await transaction_model.get_by_uid(uid)
+    if not transaction:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction with UID {uid} not found"
+        )
+    return TransactionResponse(**transaction)
+
+@router.patch("/{uid}", response_model=TransactionResponse)
+async def update_transaction(
+    uid: str,
+    tx_data: TransactionUpdate,
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> TransactionResponse:
+    """Update an existing transaction"""
+    transaction_model = TransactionModel(db)
+    # First check if transaction exists
+    existing = await transaction_model.get_by_uid(uid)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction with UID {uid} not found"
+        )
     
-    # Serialize data (convert datetime/ObjectId to string)
-    clean_data = serialize_data(data)
+    updated = await transaction_model.update(uid, tx_data.model_dump(exclude_unset=True))
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not update transaction"
+        )
+    return TransactionResponse(**updated)
+
+@router.delete("/{uid}", status_code=status.HTTP_200_OK)
+async def delete_transaction(
+    uid: str,
+    db: AsyncIOMotorDatabase = Depends(get_db)
+) -> dict:
+    """Delete a transaction"""
+    transaction_model = TransactionModel(db)
+    # First check if transaction exists
+    existing = await transaction_model.get_by_uid(uid)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transaction with UID {uid} not found"
+        )
     
-    # Validate and create
-    validate_transaction(clean_data)
-    return await create_transaction(clean_data)
-
-
-@router.get("/", response_model=List[Transaction])
-async def list_transactions():
-    return await get_all_transactions()
-
-
-@router.get("/{uid}", response_model=Transaction)
-async def get_tx(uid: str):
-    return await get_transaction(uid)
-
-
-@router.patch("/{uid}", response_model=Transaction)
-async def patch_transaction(uid: str, tx_data: dict):
-    # 1️⃣ Prevent editing UID
-    if "uid" in tx_data:
-        tx_data.pop("uid")
-
-    # 2️⃣ Serialize (e.g. handle datetime objects)
-    clean_data = serialize_data(tx_data)
-
-    # 3️⃣ Perform update (merge with existing)
-    return await update_transaction(uid, clean_data)
-
-
-@router.delete("/{uid}")
-async def delete_tx(uid: str):
-    return await delete_transaction(uid)
+    success = await transaction_model.delete(uid)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not delete transaction"
+        )
+    return {"status": "deleted", "uid": uid}
