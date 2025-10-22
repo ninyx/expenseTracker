@@ -66,9 +66,9 @@ async def database_initialization_exception_handler(request, exc):
     )
 
 # Include routers
-app.include_router(transaction_router)
-app.include_router(account_router)
-app.include_router(category_router)
+app.include_router(transaction_router, prefix='/api')
+app.include_router(account_router, prefix='/api')
+app.include_router(category_router, prefix='/api')
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
