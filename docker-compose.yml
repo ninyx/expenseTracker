@@ -12,9 +12,24 @@ services:
       - "27017:${MONGO_PORT}"
     healthcheck:
       test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 20s
+      timeout: 10s
+      retries: 10
+
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: FastAPI-ExpenseTracker
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:${MONGO_PORT}/?authSource=admin
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: on-failure
 
 volumes:
   mongo_data:
