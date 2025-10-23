@@ -12,7 +12,7 @@ class CategoryBase(BaseModel):
     name: str = Field(..., description="Name of the category")
     description: Optional[str] = None
     transaction_type: Literal["income", "expense"] = Field(..., description="Type of transaction for the category")
-    budgeted_amount: Optional[float] = Field(None, ge=0, description="Budgeted amount must be non-negative if provided")
+    budget: Optional[float] = Field(None, ge=0, description="Budgeted amount must be non-negative if provided")
     frequency: Optional[Literal["monthly", "weekly", "yearly", "one-time"]] = None
     parent_uid: Optional[str] = Field(None, description="Parent category UID if this is a sub-category")
     is_active: bool = Field(default=True, description="Flag to indicate if the category is active")
@@ -45,7 +45,7 @@ class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     transaction_type: Optional[Literal["income", "expense"]] = None
-    budgeted_amount: Optional[float] = Field(None, ge=0)
+    budget: Optional[float] = Field(None, ge=0)
     frequency: Optional[Literal["monthly", "weekly", "yearly", "one-time"]] = None
     parent_uid: Optional[str] = None
     is_active: Optional[bool] = None

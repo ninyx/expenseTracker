@@ -1,3 +1,4 @@
+from ..models.categories import CategoryModel
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import List
 from ..schemas.transaction import (
@@ -47,24 +48,67 @@ async def enrich_transaction_with_names(tx: dict, db: AsyncIOMotorDatabase) -> d
 
     return tx
 
-
-@router.post("/", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=TransactionResponse, status_code=201)
 async def create_transaction(
-    tx: TransactionCreate,
+    transaction: TransactionCreate,
     db: AsyncIOMotorDatabase = Depends(get_db)
-) -> TransactionResponse:
-    """Create a new transaction"""
+):
     transaction_model = TransactionModel(db)
-    result = await transaction_model.create(tx.model_dump())
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not create transaction"
-        )
+    category_model = CategoryModel(db)
 
-    # Add display data before returning
-    result = await enrich_transaction_with_names(result, db)
-    return TransactionResponse(**result)
+    data = transaction.model_dump()
+    transaction_type = data.get("transaction_type")
+
+    # 1️⃣ Create the transaction first
+    created_txn = await transaction_model.create(data)
+    if not created_txn:
+        raise HTTPException(status_code=400, detail="Failed to create transaction")
+
+    # 2️⃣ Apply effects to category budgets
+    if transaction_type == "expense":
+        if data.get("category_uid"):
+            category = await category_model.get_by_uid(data["category_uid"])
+            if category:
+                new_spent = category.get("total_spent", 0) + data.get("amount", 0)
+                new_budget_used = category.get("budget_used", 0) + data.get("amount", 0)
+                await category_model.update(category["uid"], {
+                    "total_spent": new_spent,
+                    "budget_used": new_budget_used
+                })
+
+    elif transaction_type == "income":
+        if data.get("category_uid"):
+            category = await category_model.get_by_uid(data["category_uid"])
+            if category:
+                new_earned = category.get("total_earned", 0) + data.get("amount", 0)
+                await category_model.update(category["uid"], {
+                    "total_earned": new_earned
+                })
+
+    elif transaction_type == "reimburse":
+        # ✅ Reimburse should *restore* budget of linked expense’s category
+        expense_uid = data.get("expense_uid")
+        if not expense_uid:
+            raise HTTPException(status_code=400, detail="Reimburse transaction must reference an expense_uid")
+
+        # find the original expense transaction
+        expense_txn = await transaction_model.get_by_uid(expense_uid)
+        if not expense_txn:
+            raise HTTPException(status_code=404, detail="Referenced expense not found")
+
+        category_uid = expense_txn.get("category_uid")
+        if category_uid:
+            category = await category_model.get_by_uid(category_uid)
+            if category:
+                reimbursed_amount = data.get("amount", 0)
+                new_budget_used = max(0, category.get("budget_used", 0) - reimbursed_amount)
+                new_spent = max(0, category.get("total_spent", 0) - reimbursed_amount)
+                await category_model.update(category_uid, {
+                    "budget_used": new_budget_used,
+                    "total_spent": new_spent
+                })
+
+    return TransactionResponse(**created_txn)
 
 
 @router.get("/", response_model=List[TransactionResponse])

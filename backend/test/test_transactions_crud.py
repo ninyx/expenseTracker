@@ -283,3 +283,38 @@ async def test_reimburse_transaction_includes_reimbursed_details(async_client, t
     get_data = get_res.json()
     assert get_data["reimbursed_transaction"]["account_name"] == "BPI Checking"
     assert get_data["reimbursed_transaction"]["category_name"] == "Medical"
+
+@pytest.mark.asyncio
+async def test_transaction_balance_updates(async_client, test_db):
+    """Ensure balances update correctly when transactions occur."""
+
+    # Create sample account
+    await test_db["accounts"].insert_one({"uid": "acct-1", "name": "Wallet", "balance": 1000})
+
+    # Expense → should subtract
+    expense = {
+        "type": "expense",
+        "amount": 200,
+        "account_uid": "acct-1",
+        "category_uid": "cat-food",
+        "description": "Dinner",
+        "date": datetime.now().isoformat(),
+    }
+    res = await async_client.post("/transactions/", json=expense)
+    assert res.status_code == 201
+
+    acct = await test_db["accounts"].find_one({"uid": "acct-1"})
+    assert acct["balance"] == 800  # deducted
+
+    # Income → should add
+    income = {
+        "type": "income",
+        "amount": 500,
+        "account_uid": "acct-1",
+        "category_uid": "cat-salary",
+        "description": "Bonus",
+        "date": datetime.now().isoformat(),
+    }
+    await async_client.post("/transactions/", json=income)
+    acct = await test_db["accounts"].find_one({"uid": "acct-1"})
+    assert acct["balance"] == 1300

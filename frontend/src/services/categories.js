@@ -1,26 +1,36 @@
 import api from "./api";
 
-export const getCategories = async () => {
-  const res = await api.get("/categories");
-  return res.data;
-};
-
-export const getCategoryById = async (id) => {
-  const res = await api.get(`/categories/${id}`);
-  return res.data;
-}
-
+// Create
 export const createCategory = async (data) => {
   const res = await api.post("/categories", data);
   return res.data;
 };
 
-export const updateCategory = async (id, data) => {
-  const res = await api.put(`/categories/${id}`, data);
+// Get all (flat)
+export const getCategories = async () => {
+  const res = await api.get("/categories");
   return res.data;
-}
+};
 
-export const deleteCategory = async (id) => {
-  const res = await api.delete(`/categories/${id}`);
+// Get tree (hierarchical)
+export const getCategoryTree = async () => {
+  const res = await api.get("/categories/tree");
   return res.data;
-}
+};
+
+export const getCategory = async (uid) => {
+  const res = await api.get(`/categories/${uid}`);
+  return res.data;
+};
+
+// Update (generic)
+export const updateCategory = async (uid, data) => {
+  const res = await api.patch(`/categories/${uid}`, data);
+  return res.data;
+};
+
+// Delete
+export const deleteCategory = async (uid) => {
+  const res = await api.delete(`/categories/${uid}`);
+  return res.data;
+};
