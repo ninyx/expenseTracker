@@ -91,13 +91,15 @@ export default function Dashboard() {
         </div>
         
         <SummaryCards totals={totals} />
-        <DashboardCharts totals={totals} categories={categories} accounts={accounts} />
         <TransactionsList
           transactions={transactions}
           accounts={accounts}
           categories={categories}
         />
         <CategoryBudgets categories={categories} />
+
+        <DashboardCharts totals={totals} categories={categories} accounts={accounts} />
+        
       </div>
     </div>
   );

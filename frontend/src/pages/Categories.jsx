@@ -381,11 +381,17 @@ export default function Categories() {
     const sumBudgets = (cats) => {
       let sum = 0;
       cats.forEach(cat => {
-        sum += cat.budget || 0;
-        if (cat.children) sum += sumBudgets(cat.children);
+        if (cat.budget && cat.budget !== 0) {
+          // If cat has a non-zero budget, add it and skip its children
+          sum += cat.budget;
+        } else if (cat.children) {
+          // If cat.budget == 0, only then sum its children's budgets
+          sum += sumBudgets(cat.children);
+        }
       });
       return sum;
     };
+
 
     return {
       total: countCategories(categories),

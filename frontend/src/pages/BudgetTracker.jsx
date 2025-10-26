@@ -51,11 +51,17 @@ export default function Budget() {
     let totalUsed = 0;
 
     const traverse = (cat) => {
-      totalBudget += cat.budget || 0;
-      totalUsed += cat.budget_used || 0;
-      if (cat.children) {
+      // If cat has a non-zero budget, add its own budget and skip children for totalBudget
+      if (cat.budget && cat.budget !== 0) {
+        totalBudget += cat.budget;
+      } 
+      // If cat.budget == 0, sum only its children’s budgets
+      else if (cat.children) {
         cat.children.forEach(traverse);
       }
+
+      // totalUsed should always include this category’s value
+      totalUsed += cat.budget_used || 0;
     };
 
     cats.forEach(traverse);

@@ -131,6 +131,35 @@ export default function BudgetCharts({ categories }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Summary Statistics */}
+      <div className="bg-white rounded-lg shadow-md p-6 border lg:col-span-2">
+        <h3 className="text-lg font-semibold mb-4">📋 Budget Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-gray-600 mb-1">Total Categories</p>
+            <p className="text-2xl font-bold text-blue-600">{chartData.length}</p>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <p className="text-sm text-gray-600 mb-1">Under Budget</p>
+            <p className="text-2xl font-bold text-green-600">
+              {chartData.filter((c) => c.percentage < 100).length}
+            </p>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <p className="text-sm text-gray-600 mb-1">Near Limit (80%+)</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {chartData.filter((c) => c.percentage >= 80 && c.percentage < 100).length}
+            </p>
+          </div>
+          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+            <p className="text-sm text-gray-600 mb-1">Over Budget</p>
+            <p className="text-2xl font-bold text-red-600">
+              {chartData.filter((c) => c.percentage >= 100).length}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Budget Allocation Pie Chart */}
       <div className="bg-white rounded-lg shadow-md p-6 border">
         <div className="flex items-center justify-between mb-4">
@@ -169,7 +198,7 @@ export default function BudgetCharts({ categories }) {
                 height={36}
                 formatter={(value, entry) => (
                   <span className="text-xs">
-                    {value}: ₱{entry.payload.value.toLocaleString()}
+                    {value}
                   </span>
                 )}
               />
@@ -319,34 +348,7 @@ export default function BudgetCharts({ categories }) {
         )}
       </div>
 
-      {/* Summary Statistics */}
-      <div className="bg-white rounded-lg shadow-md p-6 border lg:col-span-2">
-        <h3 className="text-lg font-semibold mb-4">📋 Budget Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-gray-600 mb-1">Total Categories</p>
-            <p className="text-2xl font-bold text-blue-600">{chartData.length}</p>
-          </div>
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <p className="text-sm text-gray-600 mb-1">Under Budget</p>
-            <p className="text-2xl font-bold text-green-600">
-              {chartData.filter((c) => c.percentage < 100).length}
-            </p>
-          </div>
-          <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-            <p className="text-sm text-gray-600 mb-1">Near Limit (80%+)</p>
-            <p className="text-2xl font-bold text-yellow-600">
-              {chartData.filter((c) => c.percentage >= 80 && c.percentage < 100).length}
-            </p>
-          </div>
-          <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-            <p className="text-sm text-gray-600 mb-1">Over Budget</p>
-            <p className="text-2xl font-bold text-red-600">
-              {chartData.filter((c) => c.percentage >= 100).length}
-            </p>
-          </div>
-        </div>
-      </div>
+      
     </div>
   );
 }
