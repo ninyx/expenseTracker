@@ -15,6 +15,7 @@ export default function Accounts() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState(null);
 
   const fetchAccounts = async () => {
     try {
@@ -124,6 +125,8 @@ export default function Accounts() {
               account={acc}
               onDelete={handleDeleteAccount}
               onUpdate={handleUpdateAccount}
+              isEditing={editingAccountId === acc.uid}
+              onEdit={setEditingAccountId}
             />
           ))
         )}
