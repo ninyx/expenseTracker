@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { deleteTransaction } from "../services/transactions";
 import api from "../services/api";
 import toast from "react-hot-toast";
+import TransactionForm from "../components/TransactionsForm.jsx";
 
 export default function EnhancedTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -9,6 +10,7 @@ export default function EnhancedTransactions() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -23,7 +25,7 @@ export default function EnhancedTransactions() {
   });
   
   // View preferences
-  const [viewMode, setViewMode] = useState("table"); // table or cards
+  const [viewMode, setViewMode] = useState("table");
   const [sortBy, setSortBy] = useState("date-desc");
   const [showSummary, setShowSummary] = useState(true);
 
@@ -61,12 +63,183 @@ export default function EnhancedTransactions() {
     }
   };
 
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error("Please select a CSV file");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        toast.error("CSV file is empty or invalid");
+        return;
+      }
+
+      // Parse header
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      // Expected headers: date, type, amount, description, account, category, from_account, to_account, expense_ref, transfer_fee
+      const requiredHeaders = ['date', 'type', 'amount'];
+      const hasRequired = requiredHeaders.every(h => headers.includes(h));
+      
+      if (!hasRequired) {
+        toast.error(`CSV must contain: ${requiredHeaders.join(', ')}`);
+        return;
+      }
+
+      let imported = 0;
+      let failed = 0;
+      const errors = [];
+
+      // Process each line
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        
+        if (values.length !== headers.length) {
+          errors.push(`Row ${i + 1}: Column count mismatch`);
+          failed++;
+          continue;
+        }
+
+        const row = {};
+        headers.forEach((header, idx) => {
+          row[header] = values[idx];
+        });
+
+        try {
+          const txType = row.type?.toLowerCase();
+          
+          // Find accounts by name
+          const account = accounts.find(a => 
+            a.name.toLowerCase() === row.account?.toLowerCase()
+          );
+          
+          const fromAccount = accounts.find(a => 
+            a.name.toLowerCase() === row.from_account?.toLowerCase()
+          );
+          
+          const toAccount = accounts.find(a => 
+            a.name.toLowerCase() === row.to_account?.toLowerCase()
+          );
+
+          // Find category by name
+          const category = categories.find(c => 
+            c.name.toLowerCase() === row.category?.toLowerCase()
+          );
+
+          // Build payload based on transaction type
+          let payload = {
+            type: txType,
+            amount: parseFloat(row.amount),
+            description: row.description || null,
+            date: row.date ? new Date(row.date).toISOString() : new Date().toISOString(),
+          };
+
+          // Type-specific validation and payload construction
+          if (txType === 'transfer') {
+            if (!fromAccount || !toAccount) {
+              errors.push(`Row ${i + 1}: Transfer needs valid from_account and to_account`);
+              failed++;
+              continue;
+            }
+            payload.from_account_uid = fromAccount.uid;
+            payload.to_account_uid = toAccount.uid;
+            payload.transfer_fee = row.transfer_fee ? parseFloat(row.transfer_fee) : null;
+            
+          } else if (txType === 'reimburse') {
+            if (!account) {
+              errors.push(`Row ${i + 1}: Reimburse needs valid account`);
+              failed++;
+              continue;
+            }
+            payload.account_uid = account.uid;
+            
+            // Handle expense reference - can be UID or description to look up
+            if (row.expense_ref) {
+              // Try to find the expense transaction by UID or description
+              const expenseTx = transactions.find(tx => 
+                tx.uid === row.expense_ref || 
+                (tx.type === 'expense' && tx.description?.toLowerCase() === row.expense_ref.toLowerCase())
+              );
+              
+              if (expenseTx) {
+                payload.expense_uid = expenseTx.uid;
+                // Inherit category from original expense if not specified
+                if (!category && expenseTx.category_uid) {
+                  payload.category_uid = expenseTx.category_uid;
+                }
+              } else {
+                errors.push(`Row ${i + 1}: Could not find expense '${row.expense_ref}'`);
+                failed++;
+                continue;
+              }
+            } else {
+              errors.push(`Row ${i + 1}: Reimburse needs expense_ref`);
+              failed++;
+              continue;
+            }
+            
+          } else if (txType === 'income' || txType === 'expense') {
+            if (!account) {
+              errors.push(`Row ${i + 1}: ${txType} needs valid account`);
+              failed++;
+              continue;
+            }
+            if (!category) {
+              errors.push(`Row ${i + 1}: ${txType} needs valid category`);
+              failed++;
+              continue;
+            }
+            payload.account_uid = account.uid;
+            payload.category_uid = category.uid;
+            
+          } else {
+            errors.push(`Row ${i + 1}: Invalid type '${txType}'`);
+            failed++;
+            continue;
+          }
+
+          await api.post("/transactions/", payload);
+          imported++;
+        } catch (err) {
+          console.error(`Failed to import row ${i}:`, err);
+          errors.push(`Row ${i + 1}: ${err.response?.data?.detail || err.message}`);
+          failed++;
+        }
+      }
+
+      // Show detailed results
+      if (imported > 0) {
+        toast.success(`✅ Imported ${imported} transactions successfully!`);
+      }
+      
+      if (failed > 0) {
+        const errorMsg = errors.slice(0, 5).join('\n');
+        const moreErrors = errors.length > 5 ? `\n... and ${errors.length - 5} more errors` : '';
+        toast.error(`❌ Failed ${failed} transactions:\n${errorMsg}${moreErrors}`, {
+          duration: 8000,
+        });
+      }
+
+      fetchData();
+      setShowImport(false);
+      e.target.value = ''; // Reset file input
+    } catch (err) {
+      console.error("Error importing CSV:", err);
+      toast.error("Failed to import CSV");
+    }
+  };
+
   // Apply filters
   const filteredTransactions = transactions.filter(tx => {
-    // Type filter
     if (filters.type !== "all" && tx.type !== filters.type) return false;
     
-    // Account filter
     if (filters.accountUid !== "all") {
       const matchAccount = tx.account_uid === filters.accountUid ||
         tx.from_account_uid === filters.accountUid ||
@@ -74,19 +247,15 @@ export default function EnhancedTransactions() {
       if (!matchAccount) return false;
     }
     
-    // Category filter
     if (filters.categoryUid !== "all" && tx.category_uid !== filters.categoryUid) return false;
     
-    // Date range
     const txDate = new Date(tx.date);
     if (filters.dateFrom && txDate < new Date(filters.dateFrom)) return false;
     if (filters.dateTo && txDate > new Date(filters.dateTo)) return false;
     
-    // Amount range
     if (filters.minAmount && tx.amount < parseFloat(filters.minAmount)) return false;
     if (filters.maxAmount && tx.amount > parseFloat(filters.maxAmount)) return false;
     
-    // Search term
     if (filters.searchTerm) {
       const term = filters.searchTerm.toLowerCase();
       const searchableText = `${tx.description || ""} ${tx.account_name || ""} ${tx.category_name || ""}`.toLowerCase();
@@ -107,7 +276,7 @@ export default function EnhancedTransactions() {
     }
   });
 
-  // Calculate running summary
+  // Calculate summary
   const summary = sortedTransactions.reduce((acc, tx) => {
     if (tx.type === "income") {
       acc.totalIncome += tx.amount;
@@ -127,17 +296,6 @@ export default function EnhancedTransactions() {
   });
   
   summary.netAmount = summary.totalIncome - summary.totalExpense;
-
-  // Calculate running balance
-  let runningBalance = 0;
-  const transactionsWithBalance = sortedTransactions.map(tx => {
-    if (tx.type === "income") {
-      runningBalance += tx.amount;
-    } else if (tx.type === "expense") {
-      runningBalance -= tx.amount;
-    }
-    return { ...tx, runningBalance };
-  });
 
   const clearFilters = () => {
     setFilters({
@@ -176,6 +334,12 @@ export default function EnhancedTransactions() {
             {showSummary ? "📊 Hide" : "📊 Show"} Summary
           </button>
           <button
+            onClick={() => setShowImport(!showImport)}
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md"
+          >
+            📥 Import CSV
+          </button>
+          <button
             onClick={() => setShowForm(true)}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
           >
@@ -183,6 +347,82 @@ export default function EnhancedTransactions() {
           </button>
         </div>
       </div>
+
+      {/* CSV Import Section */}
+      {showImport && (
+        <div className="bg-white rounded-lg shadow-md border p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">📥 Import Transactions from CSV</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                CSV format: date, type, amount, description, account, category, from_account, to_account, expense_ref, transfer_fee
+              </p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p><strong>All Types:</strong></p>
+                <p>• <strong>date</strong>: YYYY-MM-DD or MM/DD/YYYY (required)</p>
+                <p>• <strong>type</strong>: income, expense, transfer, or reimburse (required)</p>
+                <p>• <strong>amount</strong>: numeric value (required)</p>
+                <p>• <strong>description</strong>: text description (optional)</p>
+                <p className="mt-2"><strong>For Income/Expense:</strong></p>
+                <p>• <strong>account</strong>: exact account name (required)</p>
+                <p>• <strong>category</strong>: exact category name (required)</p>
+                <p className="mt-2"><strong>For Transfer:</strong></p>
+                <p>• <strong>from_account</strong>: source account name (required)</p>
+                <p>• <strong>to_account</strong>: destination account name (required)</p>
+                <p>• <strong>transfer_fee</strong>: fee amount if any (optional)</p>
+                <p className="mt-2"><strong>For Reimburse:</strong></p>
+                <p>• <strong>account</strong>: reimbursement destination account (required)</p>
+                <p>• <strong>expense_ref</strong>: original expense UID or description (required)</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowImport(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select CSV File
+            </label>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <p className="text-sm font-medium mb-2">Example CSV:</p>
+            <pre className="text-xs bg-white p-3 rounded border overflow-x-auto">
+date,type,amount,description,account,category,from_account,to_account,expense_ref,transfer_fee
+2024-01-15,expense,50.00,Groceries,Cash,Food,,,,
+2024-01-16,income,2000.00,Salary,Bank,Income,,,,
+2024-01-17,transfer,500.00,Savings transfer,,,Checking,Savings,,10.00
+2024-01-18,reimburse,50.00,Groceries refund,Cash,,,,,
+            </pre>
+            <div className="mt-3 text-xs text-gray-600 space-y-1">
+              <p><strong>Transfers:</strong> Use from_account and to_account columns (leave account/category blank)</p>
+              <p><strong>Reimburse:</strong> Use expense_ref to reference original expense by UID or description</p>
+              <p><strong>Income/Expense:</strong> Use account and category columns (standard format)</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transaction Form Modal */}
+      {showForm && (
+        <TransactionForm
+          onClose={() => setShowForm(false)}
+          onSuccess={() => {
+            fetchData();
+            setShowForm(false);
+          }}
+        />
+      )}
 
       {/* Summary Cards */}
       {showSummary && (
@@ -251,7 +491,6 @@ export default function EnhancedTransactions() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Search */}
           <div className="md:col-span-2">
             <input
               type="text"
@@ -262,7 +501,6 @@ export default function EnhancedTransactions() {
             />
           </div>
           
-          {/* Type */}
           <select
             value={filters.type}
             onChange={(e) => setFilters({...filters, type: e.target.value})}
@@ -275,7 +513,6 @@ export default function EnhancedTransactions() {
             <option value="reimburse">Reimburse</option>
           </select>
           
-          {/* Account */}
           <select
             value={filters.accountUid}
             onChange={(e) => setFilters({...filters, accountUid: e.target.value})}
@@ -287,7 +524,6 @@ export default function EnhancedTransactions() {
             ))}
           </select>
           
-          {/* Category */}
           <select
             value={filters.categoryUid}
             onChange={(e) => setFilters({...filters, categoryUid: e.target.value})}
@@ -299,29 +535,22 @@ export default function EnhancedTransactions() {
             ))}
           </select>
           
-          {/* Date From */}
-          <div>
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="From date"
-            />
-          </div>
+          <input
+            type="date"
+            value={filters.dateFrom}
+            onChange={(e) => setFilters({...filters, dateFrom: e.target.value})}
+            className="border rounded-lg px-3 py-2 text-sm"
+            placeholder="From date"
+          />
           
-          {/* Date To */}
-          <div>
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-              placeholder="To date"
-            />
-          </div>
+          <input
+            type="date"
+            value={filters.dateTo}
+            onChange={(e) => setFilters({...filters, dateTo: e.target.value})}
+            className="border rounded-lg px-3 py-2 text-sm"
+            placeholder="To date"
+          />
           
-          {/* Min Amount */}
           <input
             type="number"
             placeholder="Min amount"
@@ -330,7 +559,6 @@ export default function EnhancedTransactions() {
             className="border rounded-lg px-3 py-2 text-sm"
           />
           
-          {/* Max Amount */}
           <input
             type="number"
             placeholder="Max amount"
@@ -388,13 +616,12 @@ export default function EnhancedTransactions() {
                   <th className="px-4 py-3 text-left font-semibold">Account</th>
                   <th className="px-4 py-3 text-left font-semibold">Category</th>
                   <th className="px-4 py-3 text-right font-semibold">Amount</th>
-                  <th className="px-4 py-3 text-right font-semibold">Running Balance</th>
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-center font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {transactionsWithBalance.map((tx) => (
+                {sortedTransactions.map((tx) => (
                   <tr key={tx.uid} className="border-b hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 whitespace-nowrap">
                       {new Date(tx.date).toLocaleDateString()}
@@ -422,11 +649,6 @@ export default function EnhancedTransactions() {
                     }`}>
                       ₱{tx.amount.toLocaleString()}
                     </td>
-                    <td className={`px-4 py-3 text-right font-semibold ${
-                      tx.runningBalance >= 0 ? "text-green-600" : "text-red-600"
-                    }`}>
-                      ₱{tx.runningBalance.toLocaleString()}
-                    </td>
                     <td className="px-4 py-3 max-w-xs truncate">
                       {tx.description || "—"}
                     </td>
@@ -446,7 +668,7 @@ export default function EnhancedTransactions() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {transactionsWithBalance.map((tx) => (
+          {sortedTransactions.map((tx) => (
             <div key={tx.uid} className="bg-white rounded-lg shadow-md border p-4 hover:shadow-lg transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -494,50 +716,10 @@ export default function EnhancedTransactions() {
                   "{tx.description}"
                 </p>
               )}
-              
-              <div className="mt-3 pt-3 border-t">
-                <p className="text-xs text-gray-500">Running Balance</p>
-                <p className={`text-lg font-semibold ${
-                  tx.runningBalance >= 0 ? "text-green-600" : "text-red-600"
-                }`}>
-                  ₱{tx.runningBalance.toLocaleString()}
-                </p>
-              </div>
             </div>
           ))}
         </div>
       )}
-
-      {/* Export Button */}
-      <div className="flex justify-center">
-        <button
-          onClick={() => {
-            const csv = [
-              ["Date", "Type", "Account", "Category", "Amount", "Running Balance", "Description"],
-              ...transactionsWithBalance.map(tx => [
-                new Date(tx.date).toLocaleDateString(),
-                tx.type,
-                tx.account_name || tx.from_account_name || "",
-                tx.category_name || tx.to_account_name || "",
-                tx.amount,
-                tx.runningBalance,
-                tx.description || ""
-              ])
-            ].map(row => row.join(",")).join("\n");
-            
-            const blob = new Blob([csv], { type: "text/csv" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
-            a.click();
-            toast.success("Exported to CSV");
-          }}
-          className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md"
-        >
-          📥 Export to CSV
-        </button>
-      </div>
     </div>
   );
 }
