@@ -19,7 +19,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`bg-white border-r shadow-sm transition-all duration-300
-          ${collapsed ? "w-16" : "w-60"}`}
+          ${collapsed ? "w-25" : "w-60"}`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
