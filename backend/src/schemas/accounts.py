@@ -14,6 +14,7 @@ class AccountBase(BaseModel):
 class AccountCreate(AccountBase):
     """Schema for creating a new account"""
     description: Optional[str] = None
+    interest_rate: Optional[float] = None
 
     @field_validator('balance')
     @classmethod
@@ -33,6 +34,7 @@ class AccountUpdate(BaseModel):
     balance: Optional[float] = Field(None, gt=0, description="Balance must be greater than 0")
     description: Optional[str] = None
     updated_at: datetime = Field(default_factory=datetime.now)
+    interest_rate: Optional[float] = None
 
     @field_validator('balance')
     @classmethod
@@ -53,5 +55,6 @@ class AccountResponse(AccountBase):
     description: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    interest_rate: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)

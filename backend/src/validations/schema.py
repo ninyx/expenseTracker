@@ -40,7 +40,8 @@ account_schema = {
         "type": {"enum": ["checking", "savings", "credit", "loan"]},
         "balance": {"type": "number", "minimum": 0},
         "created_at": {"type": "string", "format": "date-time"},
-        "updated_at": {"type": "string", "format": "date-time"}
+        "updated_at": {"type": "string", "format": "date-time"},
+        "interest_rate": {"type": ["number", "null"], "minimum": 0}
     },
     "required": ["name", "type", "balance"],
     "additionalProperties": False
