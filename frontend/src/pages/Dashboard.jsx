@@ -3,10 +3,11 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { getAccounts, getTransactions, getCategories } from "../services/dashboard";
 
-import CategoryBudgets from "../components/dashboard/CategoryBudgets.jsx";
-import SummaryCards from "../components/dashboard/SummaryCards.jsx";
-import DashboardCharts from "../components/dashboard/DashboardCharts.jsx";
-import TransactionsList from "../components/dashboard/TransactionList.jsx";
+// Import the enhanced components
+import { CategoryBudgets } from "../components/dashboard/CategoryBudgets.jsx";
+import { SummaryCards } from "../components/dashboard/SummaryCards.jsx";
+import { DashboardCharts } from "../components/dashboard/DashboardCharts.jsx";
+import { TransactionsList } from "../components/dashboard/TransactionList.jsx";
 
 export default function Dashboard() {
   const [accounts, setAccounts] = useState([]);
@@ -71,21 +72,33 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <p className="p-6 text-gray-500">Loading dashboard...</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <p className="text-gray-500 text-lg">Loading dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">📊 Dashboard</h1>
-      <SummaryCards totals={totals} />
-      <DashboardCharts totals={totals} categories={categories} accounts={accounts} />
-      <TransactionsList
-        transactions={transactions}
-        accounts={accounts}
-        categories={categories}
-      />
-
-      <CategoryBudgets categories={categories} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">📊 Dashboard</h1>
+          <p className="text-gray-600">Overview of your financial health</p>
+        </div>
+        
+        <SummaryCards totals={totals} />
+        <DashboardCharts totals={totals} categories={categories} accounts={accounts} />
+        <TransactionsList
+          transactions={transactions}
+          accounts={accounts}
+          categories={categories}
+        />
+        <CategoryBudgets categories={categories} />
+      </div>
     </div>
   );
 }

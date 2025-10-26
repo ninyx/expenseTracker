@@ -1,69 +1,72 @@
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, Calendar, AlertCircle, CheckCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
-// src/components/dashboard/TransactionsList.jsx
-import React, { useState } from "react";
 
-// Single transaction component
-function TransactionItem({ tx, accounts = [], categories = [] }) {
-  if (!tx) return null; // defensive
-
-  const [expanded, setExpanded] = useState(false);
-
-  const account = accounts.find((a) => a.uid === tx.account_uid);
-  const category = categories.find((c) => c.uid === tx.category_uid);
-
-  const typeColors = {
-    income: { bg: "bg-green-100", text: "text-green-700", amount: "text-green-600", icon: "💰" },
-    expense: { bg: "bg-red-100", text: "text-red-700", amount: "text-red-600", icon: "🛒" },
-    reimburse: { bg: "bg-amber-100", text: "text-amber-700", amount: "text-amber-600", icon: "💵" },
-    transfer: { bg: "bg-blue-100", text: "text-blue-700", amount: "text-blue-600", icon: "🔁" },
-  };
-
-  const txType = tx.transaction_type || tx.type || "other";
-  const colors = typeColors[txType] || { bg: "bg-gray-100", text: "text-gray-700", amount: "text-gray-600", icon: "💼" };
-
-  return (
-    <div
-      className="border-b py-3 last:border-none cursor-pointer hover:bg-gray-50 transition-colors rounded-sm"
-      onClick={() => setExpanded(!expanded)}
-    >
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col">
-          <p className="font-medium flex items-center gap-1">
-            <span>{colors.icon}</span> {tx.description || tx.name || "No description"}
-          </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>{tx.date ? new Date(tx.date).toLocaleDateString() : "No date"}</span>
-            <span className={`font-semibold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text}`}>
-              {txType}
-            </span>
-          </div>
-        </div>
-        <p className={`font-semibold ${colors.amount}`}>
-          ₱{Number(tx.amount || 0).toLocaleString()}
-        </p>
+// Enhanced Transaction List
+export function TransactionsList({ transactions, accounts, categories }) {
+  if (!transactions || transactions.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center">
+        <div className="text-6xl mb-4">📝</div>
+        <p className="text-lg font-medium text-gray-700 mb-2">No Recent Transactions</p>
+        <p className="text-gray-500">Your recent transactions will appear here</p>
       </div>
+    );
+  }
 
-      {expanded && (
-        <div className="text-xs text-gray-700 mt-2 ml-2 space-y-1 border-l-2 border-gray-200 pl-3">
-          {account && <p>💳 <span className="font-medium">{account.name}</span></p>}
-          {category && <p>🗂 <span className="font-medium">{category.name}</span></p>}
-          {tx.transfer_fee > 0 && <p>💸 Transfer Fee: ₱{Number(tx.transfer_fee).toLocaleString()}</p>}
-          {tx.notes && <p>📝 {tx.notes}</p>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Wrapper for the transactions list
-export default function TransactionsList({ transactions = [], accounts = [], categories = [] }) {
   return (
-    <div className="space-y-2">
-      {transactions
-        .filter(Boolean) // remove undefined/null
-        .map((tx) => (
-          <TransactionItem key={tx.uid || tx.id || Math.random()} tx={tx} accounts={accounts} categories={categories} />
-        ))}
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+      <div className="p-6 border-b border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <CreditCard className="w-5 h-5 text-blue-600" />
+          Recent Transactions
+        </h3>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {transactions.map((tx) => {
+              const isIncome = tx.transaction_type === 'income';
+              const isExpense = tx.transaction_type === 'expense';
+              
+              return (
+                <tr key={tx.uid} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {new Date(tx.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-900">
+                    <div className="flex items-center gap-2">
+                      {isIncome && <TrendingUp className="w-4 h-4 text-green-500" />}
+                      {isExpense && <TrendingDown className="w-4 h-4 text-red-500" />}
+                      <span className="font-medium">{tx.description || 'No description'}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {tx.category_name || '—'}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {tx.account_name || tx.from_account_name || '—'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold">
+                    <span className={isIncome ? 'text-green-600' : isExpense ? 'text-red-600' : 'text-blue-600'}>
+                      {isIncome ? '+' : isExpense ? '-' : ''}₱{tx.amount.toLocaleString()}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
