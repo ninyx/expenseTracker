@@ -11,6 +11,7 @@ export default function Navbar() {
       <Link to="/accounts" className={linkClass("/accounts")}>Accounts</Link>
       <Link to="/transactions" className={linkClass("/transactions")}>Transactions</Link>
       <Link to="/categories" className={linkClass("/categories")}>Categories</Link>
+      <Link to="/budget" className={linkClass("/budget")}>Budget Tracker</Link>
     </nav>
   );
 }
