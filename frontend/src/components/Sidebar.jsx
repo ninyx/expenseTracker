@@ -1,10 +1,12 @@
-// src/components/Navbar.jsx
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router";
+// src/components/Sidebar.jsx - Debug version
+import { useState } from "react";
+import { Link, useLocation, Outlet } from "react-router";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+
+  console.log("Sidebar rendered, current path:", location.pathname);
 
   const linkClass = (path) =>
     `flex items-center gap-3 px-4 py-2 rounded-md transition-all duration-200
@@ -32,7 +34,7 @@ export default function Sidebar() {
         </div>
 
         {/* Nav Links */}
-        <nav className="flex flex-col gap-1 mt-4">
+        <nav className="flex flex-col gap-1 p-4">
           <Link to="/" className={linkClass("/")}>
             <span className="text-xl">📊</span>
             {!collapsed && <span>Dashboard</span>}
@@ -62,7 +64,10 @@ export default function Sidebar() {
 
       {/* Main Content */}
       <main className="flex-1 bg-gray-50 p-6 overflow-y-auto">
-        {/* The page content is rendered by React Router here */}
+        
+        {/* This is where child routes render */}
+        <Outlet />
+        
       </main>
     </div>
   );
