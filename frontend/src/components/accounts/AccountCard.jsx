@@ -18,7 +18,6 @@ export default function AccountCard({ account, onDelete, onUpdate }) {
   };
 
   const handleCancel = () => {
-    // Reset to original values
     setEditData({
       name: account.name,
       type: account.type,
@@ -60,10 +59,42 @@ export default function AccountCard({ account, onDelete, onUpdate }) {
     return colors[type] || "bg-gray-100 text-gray-700 border-gray-200";
   };
 
-  // Calculate projected interest (monthly)
-  const monthlyInterest = (editData.interest_rate || account.interest_rate)
-    ? ((editData.balance || account.balance) * ((editData.interest_rate || account.interest_rate) / 100)) / 12
-    : 0;
+  // Calculate interest based on current values
+  const calculateInterest = (balance, rate, frequency) => {
+    if (!rate || rate === 0) return 0;
+    
+    const annualRate = rate / 100;
+    let interest = 0;
+    
+    switch(frequency) {
+      case "monthly":
+        interest = (balance * annualRate) / 12;
+        break;
+      case "quarterly":
+        interest = (balance * annualRate) / 4;
+        break;
+      case "annually":
+        interest = balance * annualRate;
+        break;
+      default:
+        interest = (balance * annualRate) / 12;
+    }
+    
+    return interest;
+  };
+
+  const currentInterest = calculateInterest(
+    isEditing ? parseFloat(editData.balance) || 0 : account.balance,
+    isEditing ? parseFloat(editData.interest_rate) || 0 : account.interest_rate || 0,
+    isEditing ? editData.interest_frequency : account.interest_frequency || "monthly"
+  );
+
+  // Calculate annual projection
+  const annualProjection = calculateInterest(
+    isEditing ? parseFloat(editData.balance) || 0 : account.balance,
+    isEditing ? parseFloat(editData.interest_rate) || 0 : account.interest_rate || 0,
+    "annually"
+  );
 
   return (
     <div className="bg-white rounded-xl shadow-lg border hover:shadow-xl transition-shadow overflow-hidden">
@@ -131,45 +162,82 @@ export default function AccountCard({ account, onDelete, onUpdate }) {
         </div>
 
         {/* Interest Information */}
-        {(isEditing || account.interest_rate > 0) && (
+        {(isEditing || (account.interest_rate && account.interest_rate > 0)) && (
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Interest Rate</span>
-              {isEditing ? (
-                <input
-                  type="number"
-                  step="0.01"
-                  value={editData.interest_rate}
-                  onChange={(e) => setEditData({ ...editData, interest_rate: parseFloat(e.target.value) || 0 })}
-                  className="text-lg font-bold text-green-700 px-2 py-1 border rounded w-24"
-                  placeholder="0.00"
-                />
-              ) : (
-                <span className="text-lg font-bold text-green-700">
-                  {account.interest_rate}% APR
+            <div className="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Interest Rate (% APR)</label>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={editData.interest_rate}
+                    onChange={(e) => setEditData({ ...editData, interest_rate: parseFloat(e.target.value) || 0 })}
+                    className="text-lg font-bold text-green-700 px-2 py-1 border rounded w-full"
+                    placeholder="0.00"
+                  />
+                ) : (
+                  <p className="text-lg font-bold text-green-700">
+                    {account.interest_rate}% APR
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Frequency</label>
+                {isEditing ? (
+                  <select
+                    value={editData.interest_frequency}
+                    onChange={(e) => setEditData({ ...editData, interest_frequency: e.target.value })}
+                    className="text-sm px-2 py-1 border rounded w-full capitalize"
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="annually">Annually</option>
+                  </select>
+                ) : (
+                  <p className="text-sm font-medium text-green-600 capitalize">
+                    {account.interest_frequency || "Monthly"}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Interest Calculations */}
+            <div className="space-y-2 pt-3 border-t border-green-200">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">
+                  {isEditing ? editData.interest_frequency : account.interest_frequency || "Monthly"} Interest
                 </span>
+                <span className="font-semibold text-green-600">
+                  ≈ ₱{currentInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">Annual Projection</span>
+                <span className="font-semibold text-green-700">
+                  ≈ ₱{annualProjection.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {currentInterest > 0 && (
+                <div className="mt-2 p-2 bg-green-100 rounded text-xs text-green-800">
+                  💡 At this rate, you'll earn approximately ₱{annualProjection.toLocaleString(undefined, { maximumFractionDigits: 0 })} in the next year.
+                </div>
               )}
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Monthly Interest</span>
-              <span className="font-semibold text-green-600">
-                ≈ ₱{monthlyInterest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-            {isEditing && (
-              <div className="mt-2">
-                <label className="text-xs text-gray-600 block mb-1">Interest Frequency</label>
-                <select
-                  value={editData.interest_frequency}
-                  onChange={(e) => setEditData({ ...editData, interest_frequency: e.target.value })}
-                  className="text-sm px-2 py-1 border rounded w-full"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="annually">Annually</option>
-                </select>
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* No Interest Notice */}
+        {!isEditing && (!account.interest_rate || account.interest_rate === 0) && (
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <p className="text-sm text-gray-600 text-center">
+              💡 This account has no interest rate set
+            </p>
           </div>
         )}
 
