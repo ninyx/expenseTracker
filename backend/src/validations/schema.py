@@ -41,7 +41,8 @@ account_schema = {
         "balance": {"type": "number", "minimum": 0},
         "created_at": {"type": "string", "format": "date-time"},
         "updated_at": {"type": "string", "format": "date-time"},
-        "interest_rate": {"type": ["number", "null"], "minimum": 0}
+        "interest_rate": {"type": ["number", "null"], "minimum": 0},
+        "interest_frequency": {"enum": ["monthly", "quarterly", "annually"]},
     },
     "required": ["name", "type", "balance"],
     "additionalProperties": False
